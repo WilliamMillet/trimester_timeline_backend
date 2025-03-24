@@ -120,3 +120,42 @@ exports.handleLogin = (req, res) => {
         });
     });
 };
+
+exports.handleDeleteUser = (req, res) => {
+    const { zid, password } = req.body;
+    const missingFields = [];
+    if (!zid) missingFields.push("zid");
+    if (!password) missingFields.push("password");
+    if (missingFields.length > 0) {
+        return res.status(400).json({ success: false, error: `Missing required field(s): ${missingFields.join(", ")}` });
+    }
+    if (typeof zid !== "string" || typeof password !== "string") {
+        return res.status(400).json({ success: false, error: "Invalid data types provided. Expected zid and password to be strings." });
+    }
+    
+    const selectQuery = `SELECT password FROM users WHERE zID = ?`;
+    db.query(selectQuery, [zid], (err, results) => {
+        if (err) {
+            return res.status(500).json({ success: false, error: "Internal server error while verifying user." });
+        }
+        if (!results || results.length === 0) {
+            return res.status(401).json({ success: false, error: "Invalid zID or password." });
+        }
+        const dbPassword = results[0].password;
+        bcrypt.compare(password, dbPassword, (err, isMatch) => {
+            if (err) {
+                return res.status(500).json({ success: false, error: "Error processing deletion." });
+            }
+            if (!isMatch) {
+                return res.status(401).json({ success: false, error: "Incorrect password" });
+            }
+            const deleteQuery = `DELETE FROM users WHERE zID = ?`;
+            db.query(deleteQuery, [zid], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ success: false, error: "Internal server error during deletion." });
+                }
+                return res.status(200).json({ success: true, message: "User deletion was successful" });
+            });
+        });
+    });
+};
