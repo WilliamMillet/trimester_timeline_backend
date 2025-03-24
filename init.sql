@@ -4,34 +4,35 @@ USE trimester_timeline;
 CREATE TABLE users (
   zID INT NOT NULL PRIMARY KEY,
   name TEXT NOT NULL,
-  passwrd TEXT,
+  password TEXT NOT NULL,
   degree TEXT,
   year INT
 );
 
 CREATE TABLE subjects (
-  courseCode INT NOT NULL PRIMARY KEY,
+  course_code VARCHAR(10) NOT NULL PRIMARY KEY,
   name TEXT
 );
 
 CREATE TABLE assignments (
-  assignmentId INT NOT NULL PRIMARY KEY,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  course_code VARCHAR(10), 
   name TEXT,
   description TEXT,
-  releaseDate DATE,
-  dueDate DATE,
-  subject INT,
-  FOREIGN KEY (subject) REFERENCES subjects(courseCode)
+  release_date DATE,
+  due_date DATE,
+  is_obselete BOOLEAN NOT NULL DEFAULT FALSE, -- Is the assignment outdated
+  FOREIGN KEY (course_code) REFERENCES subjects(course_code)
 );
 
 CREATE TABLE reviews (
-  studentId INT NOT NULL,
-  assignmentId INT NOT NULL,
+  user_zid INT NOT NULL,
+  assignment_id INT NOT NULL,
   content TEXT,
-  timeTakenInWeeks DECIMAL(5,2),
-  reviewDate DATE,
+  time_taken_in_weeks DECIMAL(5,2),
+  review_date DATE,
   is_anonymous BOOLEAN NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (studentId, assignmentId),
-  FOREIGN KEY (studentId) REFERENCES users(zID),
-  FOREIGN KEY (assignmentId) REFERENCES assignments(assignmentId)
+  PRIMARY KEY (user_zid, assignment_id),
+  FOREIGN KEY (user_zid) REFERENCES users(zID) ON DELETE CASCADE,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
 );

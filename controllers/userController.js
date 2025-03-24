@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const bcrypt = require('bcrypt')
 
 exports.handleSignup = async (req, res) => {
     const { name, zid, password, degree, year } = req.body;
@@ -22,7 +23,7 @@ exports.handleSignup = async (req, res) => {
       typeof name !== "string" ||
       typeof zid !== "string" ||
       typeof password !== "string" ||
-      typeof degree !== "string" ||
+      typeof degree.label != "string" ||
       typeof year !== "number"
     ) {
       return res
@@ -61,7 +62,7 @@ exports.handleSignup = async (req, res) => {
             }
             
             const insertQuery = `INSERT INTO users (name, zID, password, degree, year) VALUES (?, ?, ?, ?, ?)`;
-            db.query(insertQuery, [name, zid, hashedPassword, degree, year], (err, result) => {
+            db.query(insertQuery, [name, zid, hashedPassword, degree.label, year], (err, result) => {
                 if (err) {
                     console.error("Database error during user insertion:", err);
                     return res.status(500).json({
