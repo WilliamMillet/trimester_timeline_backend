@@ -154,3 +154,44 @@ exports.postReview = (req, res) => {
         res.status(201).send({ message: "Review submitted successfully.", reviewId: result.insertId });
     });
 }
+
+exports.deleteReview = (req, res) => {
+    const { reviewId } = req.params;
+    const parsedReviewId = parseInt(reviewId, 10);
+    if (isNaN(parsedReviewId)) {
+        return res.status(400).send({ success: false, error: "reviewId must be a valid integer." });
+    }
+
+    const sql = `
+        DELETE FROM reviews
+        WHERE id = ?
+    `;
+
+    db.query(sql, [parsedReviewId], (err, result) => {
+        if (err) {
+            console.error("Database delete error:", err);
+            return res.status(500).send({ success: false, error: "Database error, please try again later." });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).send({ success: false, error: "Review not found." });
+        }
+        res.status(200).send({ success: true, message: "Review deleted successfully." });
+    });
+};
+
+exports.getReviewsByAssignment = (req, res) => {
+    const { assignmentId } = req.params;
+    const parsedAssignmentId = parseInt(assignmentId, 10);
+    if (isNaN(parsedAssignmentId)) {
+        return res.status(400).send({ success: false, error: "assignmentId must be a valid integer." });
+    }
+
+    const sql = "SELECT * FROM reviews WHERE assignmentId = ?";
+    db.query(sql, [parsedAssignmentId], (err, reviews) => {
+        if (err) {
+            console.error("Database query error:", err);
+            return res.status(500).send({ success: false, error: "Database error, please try again later." });
+        }
+        res.status(200).send({ success: true, data: reviews });
+    });
+};
