@@ -16,21 +16,21 @@ CREATE TABLE subjects (
 
 CREATE TABLE assignments (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  course_code VARCHAR(10), 
-  name TEXT,
+  course_code VARCHAR(10) NOT NULL,
+  name TEXT NOT NULL,
   description TEXT,
-  release_date DATE,
-  due_date DATE,
-  is_obselete BOOLEAN NOT NULL DEFAULT FALSE, -- Is the assignment outdated
-  FOREIGN KEY (course_code) REFERENCES subjects(course_code)
+  is_obsolete BOOLEAN NOT NULL DEFAULT FALSE,
+  FOREIGN KEY (course_code) REFERENCES subjects(course_code) ON DELETE CASCADE
 );
 
 CREATE TABLE reviews (
   user_zid INT NOT NULL,
   assignment_id INT NOT NULL,
   content TEXT,
-  time_taken_in_weeks DECIMAL(5,2),
-  review_date DATE,
+  time_taken_in_weeks DECIMAL(5,2) CHECK(time_taken_in_weeks >= 0),
+  review_date DATE DEFAULT  (CURRENT_DATE),
+  release_date DATE,
+  due_date DATE,
   is_anonymous BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (user_zid, assignment_id),
   FOREIGN KEY (user_zid) REFERENCES users(zID) ON DELETE CASCADE,

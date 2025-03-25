@@ -1,84 +1,128 @@
 const db = require("../config/db");
 
 exports.postReview = (req, res) => {
+    console.log(req.body)
+    // Extract data from request body
     const {
-      studentId,
-      assignmentId,
-      content = null,
-      timeTakenInWeeks = null,
-      reviewDate = null,
-      is_anonymous
+        studentId,
+        assignmentId,
+        content,
+        timeTakenInWeeks,
+        reviewDate,
+        is_anonymous
     } = req.body;
-  
-    // Required fields
-    if (studentId === undefined || assignmentId === undefined || is_anonymous === undefined) {
-      return res.status(400).json({ success: false, error: "Missing required fields: studentId, assignmentId, is_anonymous." });
+
+    // Basic validation (content is now optional)
+    if (!studentId || !assignmentId || !timeTakenInWeeks || !reviewDate) {
+        return res.status(400).json({
+            success: false,
+            error: 'Missing required fields'
+        });
     }
-  
-    // Parse & validate IDs
-    const parsedStudentId = parseInt(studentId, 10);
-    if (isNaN(parsedStudentId) || parsedStudentId <= 0) {
-      return res.status(400).json({ success: false, error: "studentId must be a positive integer." });
-    }
-  
-    const parsedAssignmentId = parseInt(assignmentId, 10);
-    if (isNaN(parsedAssignmentId) || parsedAssignmentId <= 0) {
-      return res.status(400).json({ success: false, error: "assignmentId must be a positive integer." });
-    }
-  
-    // Optional content
-    if (content !== null && typeof content !== "string") {
-      return res.status(400).json({ success: false, error: "content must be a string." });
-    }
-    if (typeof content === "string" && content.length > 1000) {
-      return res.status(400).json({ success: false, error: "content cannot exceed 1000 characters." });
-    }
-  
-    // Optional timeTakenInWeeks
-    let parsedTimeTakenInWeeks = null;
-    if (timeTakenInWeeks !== null) {
-      parsedTimeTakenInWeeks = parseFloat(timeTakenInWeeks);
-      if (isNaN(parsedTimeTakenInWeeks) || parsedTimeTakenInWeeks < 0) {
-        return res.status(400).json({ success: false, error: "timeTakenInWeeks must be a non‑negative number." });
-      }
-    }
-  
-    // Optional reviewDate
-    let parsedReviewDate = null;
-    if (reviewDate !== null) {
-      parsedReviewDate = new Date(reviewDate);
-      if (isNaN(parsedReviewDate.getTime())) {
-        return res.status(400).json({ success: false, error: "reviewDate must be a valid ISO date string." });
-      }
-      // Prevent future dates
-      if (parsedReviewDate > new Date()) {
-        return res.status(400).json({ success: false, error: "reviewDate cannot be in the future." });
-      }
-      parsedReviewDate = parsedReviewDate.toISOString().split('T')[0];
-    }
-  
-    // is_anonymous must be boolean
-    if (typeof is_anonymous !== "boolean") {
-      return res.status(400).json({ success: false, error: "is_anonymous must be a boolean." });
-    }
-  
-    // All validations passed → insert
-    const sql = `
-      INSERT INTO reviews (
-        studentId, assignmentId, content, timeTakenInWeeks, reviewDate, is_anonymous
-      ) VALUES (?, ?, ?, ?, ?, ?)
-    `;
-    const data = [parsedStudentId, parsedAssignmentId, content, parsedTimeTakenInWeeks, parsedReviewDate, is_anonymous];
-  
-    db.query(sql, data, (err, result) => {
-      if (err) {
-        console.error("Database insert error:", err);
-        return res.status(500).json({ success: false, error: "Database error, please try again later." });
-      }
-      return res.status(201).json({ success: true, message: "Review submitted successfully.", reviewId: result.insertId });
+
+    // First, verify that the assignment exists
+    const checkAssignmentQuery = 'SELECT id FROM assignments WHERE id = ?';
+    
+    db.query(checkAssignmentQuery, [assignmentId], (err, assignmentResults) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: 'Database error checking assignment',
+                details: err.message
+            });
+        }
+
+        if (assignmentResults.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Assignment not found'
+            });
+        }
+
+        // Then verify the user exists (assuming users table has zID as primary key)
+        const checkUserQuery = 'SELECT zID FROM users WHERE zID = ?';
+        
+        db.query(checkUserQuery, [studentId], (err, userResults) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Database error checking user',
+                    details: err.message
+                });
+            }
+
+            if (userResults.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: 'User not found'
+                });
+            }
+
+            // Prepare the review data, defaulting content to an empty string if not provided
+            const reviewData = {
+                user_zid: studentId,
+                assignment_id: assignmentId,
+                content: content || '',
+                time_taken_in_weeks: timeTakenInWeeks,
+                review_date: reviewDate,
+                is_anonymous: is_anonymous || false
+            };
+
+            // Insert the review
+            const insertQuery = `
+                INSERT INTO reviews (
+                    user_zid,
+                    assignment_id,
+                    content,
+                    time_taken_in_weeks,
+                    review_date,
+                    is_anonymous
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            `;
+
+            db.query(
+                insertQuery,
+                [
+                    reviewData.user_zid,
+                    reviewData.assignment_id,
+                    reviewData.content,
+                    reviewData.time_taken_in_weeks,
+                    reviewData.review_date,
+                    reviewData.is_anonymous
+                ],
+                (err, result) => {
+                    if (err) {
+                        // Handle duplicate entry error (if review already exists for this user/assignment)
+                        if (err.code === 'ER_DUP_ENTRY') {
+                            return res.status(400).json({
+                                success: false,
+                                error: 'Review already exists for this user and assignment'
+                            });
+                        }
+                        
+                        return res.status(500).json({
+                            success: false,
+                            error: 'Database error creating review',
+                            details: err.message
+                        });
+                    }
+
+                    // Success response
+                    res.status(201).json({
+                        success: true,
+                        data: {
+                            id: result.insertId,
+                            ...reviewData
+                        },
+                        message: 'Review created successfully'
+                    });
+                }
+            );
+        });
     });
-  };
-  
+};
+
+
 
 exports.getReviewsByAssignment = (req, res) => {
     const { assignmentId } = req.params;
