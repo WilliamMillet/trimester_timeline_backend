@@ -1,7 +1,6 @@
 const db = require("../config/db");
 
 exports.postReview = (req, res) => {
-    console.log(req.body)
     // Extract data from request body
     const {
         studentId,
@@ -13,7 +12,7 @@ exports.postReview = (req, res) => {
     } = req.body;
 
     // Basic validation (content is now optional)
-    if (!studentId || !assignmentId || !timeTakenInWeeks || !reviewDate) {
+if (!studentId || !assignmentId || !timeTakenInWeeks || !reviewDate) {
         return res.status(400).json({
             success: false,
             error: 'Missing required fields'
@@ -125,13 +124,14 @@ exports.postReview = (req, res) => {
 
 
 exports.getReviewsByAssignment = (req, res) => {
-    const { assignmentId } = req.params;
-    const parsedAssignmentId = parseInt(assignmentId, 10);
+    console.log(req.params)
+    const { id } = req.params;
+    const parsedAssignmentId = parseInt(id, 10);
     if (isNaN(parsedAssignmentId)) {
         return res.status(400).send({ success: false, error: "assignmentId must be a valid integer." });
     }
 
-    const sql = "SELECT * FROM reviews WHERE assignmentId = ?";
+    const sql = "SELECT * FROM reviews WHERE assignment_id = ?";
     db.query(sql, [parsedAssignmentId], (err, reviews) => {
         if (err) {
             console.error("Database query error:", err);
